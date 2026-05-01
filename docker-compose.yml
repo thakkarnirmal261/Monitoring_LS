@@ -1,0 +1,52 @@
+version: "3.9"
+
+services:
+  redis:
+    image: redis:7
+    restart: always
+
+  backend:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    restart: always
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    volumes:
+      - .:/app
+      - /home/ubuntu/.ssh:/root/.ssh   # ✅ EC2 path (NOT Windows)
+
+  worker:
+    build: .
+    command: celery -A app.worker.celery worker --loglevel=info
+    restart: always
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    volumes:
+      - .:/app
+      - /home/ubuntu/.ssh:/root/.ssh
+
+  beat:
+    build: .
+    command: celery -A app.worker.celery beat --loglevel=info
+    restart: always
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    volumes:
+      - .:/app
+      - /home/ubuntu/.ssh:/root/.ssh
+
+  nginx:
+    image: nginx:latest
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - backend

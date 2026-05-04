@@ -22,9 +22,10 @@ jobs:
 
             git pull origin main
 
-            docker compose config
-            docker compose down
-            docker compose up -d --build
+            docker-compose down --remove-orphans || true
+            docker rm -f monitoring_ls_backend_1 monitoring_ls_worker_1 monitoring_ls_beat_1 monitoring_ls_nginx_1 || true
 
-            docker compose ps
+            docker-compose up -d --build
+
+            docker-compose ps
             curl -f http://localhost

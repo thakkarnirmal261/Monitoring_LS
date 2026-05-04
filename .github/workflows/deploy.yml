@@ -28,4 +28,17 @@ jobs:
             docker-compose up -d --build
 
             docker-compose ps
-            curl -f http://localhost
+
+            for i in {1..10}; do
+              if curl -f http://localhost; then
+                echo "App is healthy"
+                exit 0
+              fi
+              echo "Waiting for app..."
+              sleep 3
+            done
+
+            echo "App health check failed"
+            docker-compose logs backend
+            docker-compose logs nginx
+            exit 1

@@ -6,3 +6,16 @@ celerybeat-schedule
 frontend/node_modules/
 node_modules/frontend/node_modules/
 node_modules/
+.git
+.github
+frontend/node_modules
+frontend/.vite
+frontend/dist
+node_modules
+__pycache__
+*.pyc
+.env
+myenv
+venv
+.venv
+celerybeat-schedule

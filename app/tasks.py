@@ -1,13 +1,22 @@
 from app.worker import celery
-from app.metrics import get_ram, get_load
+from app.metrics import get_all_metrics
 from app.database import insert_metric
+
 
 @celery.task
 def collect_metrics():
-    print("Task runnning...")
-    ram = get_ram()
-    load = get_load()
+    print("Task running...")
 
-    insert_metric(ram, load)
+    data = get_all_metrics()
 
-    return {"ram": ram, "load": load}
+    insert_metric(
+        data["ram"],
+        data["load"],
+        data["disk_used_percent"],
+        data["load1"],
+        data["load5"],
+        data["load15"],
+        data["cpu_percent"],
+    )
+
+    return data

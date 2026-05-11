@@ -18,4 +18,5 @@ __pycache__
 myenv
 venv
 .venv
-celerybeat-schedule
+celerybeat-schedule 
+docker-compose.override.yml 

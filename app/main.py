@@ -8,39 +8,49 @@ app = FastAPI()
 # Enable CORS for frontend to access backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://43.205.203.53"],  # Allow all origins (change to specific domains in production)
+    allow_origins=["http://43.205.203.53", "http://localhost:3000", "http://localhost:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 def home():
     return {"msg": "Monitoring running"}
 
-# Manual trigger (keep it for testing)
+
+# Manual trigger for testing
 @app.get("/trigger")
 def trigger():
     collect_metrics.delay()
     return {"msg": "Task sent to worker"}
 
+
 @app.get("/metrics")
 def metrics():
     try:
         data = get_metrics()
+
         return [
             {
+                "id": d[0],
                 "ram": d[1],
                 "load": d[2],
-                "time": str(d[3])
+                "disk_used_percent": d[3],
+                "load1": d[4],
+                "load5": d[5],
+                "load15": d[6],
+                "cpu_percent": d[7],
+                "time": str(d[8])
             }
             for d in data
         ]
+
     except Exception as e:
         print(f"Error fetching metrics: {e}")
-        # Return mock data for local testing
-        return [
-            {"ram": "45.2", "load": "1.23", "time": "2024-01-15 10:30:45"},
-            {"ram": "48.5", "load": "1.45", "time": "2024-01-15 10:30:50"},
-            {"ram": "42.1", "load": "1.10", "time": "2024-01-15 10:31:00"}
-        ]
+
+        return {
+            "error": "Failed to fetch metrics",
+            "detail": str(e)
+        }

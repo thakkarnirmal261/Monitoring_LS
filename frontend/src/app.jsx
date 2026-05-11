@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
 import { fetchMetrics } from './api.js';
 import './app.css';
 
@@ -9,48 +12,43 @@ export default function App() {
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  // Fetch metrics on component mount and set up polling
   useEffect(() => {
     const loadMetrics = async () => {
       try {
         const data = await fetchMetrics();
-        setMetrics(data);
+
+        const formatted = data.map((m) => ({
+          ...m,
+          ram: Number(m.ram) || 0,
+          load: Number(m.load) || 0,
+          disk_used_percent: Number(m.disk_used_percent) || 0,
+          load1: Number(m.load1) || 0,
+          load5: Number(m.load5) || 0,
+          load15: Number(m.load15) || 0,
+          cpu_percent: Number(m.cpu_percent) || 0,
+          time: new Date(m.time).toLocaleTimeString(),
+        }));
+
+        setMetrics(formatted);
         setLastUpdated(new Date().toLocaleTimeString());
         setError(null);
-        setLoading(false);
       } catch (err) {
         console.error('Metrics fetch error:', err);
-        // Only set error if this is the first load and we have no data
         if (metrics.length === 0) {
-          setError('Failed to fetch metrics. Make sure the monitoring server is running.');
+          setError('Failed to fetch metrics. Make sure backend is running.');
         }
+      } finally {
         setLoading(false);
       }
     };
 
     loadMetrics();
 
-    // Poll for new data every 5 seconds
     const interval = setInterval(loadMetrics, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  // Calculate summary statistics
-  const stats = React.useMemo(() => {
-    if (metrics.length === 0) return { avgRam: 0, avgLoad: 0, maxRam: 0, maxLoad: 0 };
-
-    const rams = metrics.map(m => parseFloat(m.ram) || 0);
-    const loads = metrics.map(m => parseFloat(m.load) || 0);
-
-    return {
-      avgRam: (rams.reduce((a, b) => a + b, 0) / rams.length).toFixed(2),
-      avgLoad: (loads.reduce((a, b) => a + b, 0) / loads.length).toFixed(2),
-      maxRam: Math.max(...rams).toFixed(2),
-      maxLoad: Math.max(...loads).toFixed(2),
-      latestRam: rams[rams.length - 1]?.toFixed(2),
-      latestLoad: loads[loads.length - 1]?.toFixed(2),
-    };
-  }, [metrics]);
+  const latest = metrics[metrics.length - 1] || {};
 
   if (error) {
     return (
@@ -64,11 +62,20 @@ export default function App() {
     );
   }
 
+  const ChartBox = ({ title, children }) => (
+    <div className="chart-container">
+      <h2>{title}</h2>
+      <ResponsiveContainer width="100%" height={300}>
+        {children}
+      </ResponsiveContainer>
+    </div>
+  );
+
   return (
     <div className="container">
       <header className="header">
         <h1>📊 Server Monitoring Dashboard</h1>
-        <p>Production Server Metrics</p>
+        <p>RAM, Disk, CPU and Load Metrics Over Time</p>
       </header>
 
       {loading && metrics.length === 0 ? (
@@ -78,135 +85,123 @@ export default function App() {
         </div>
       ) : (
         <>
-          {/* Last Updated */}
           <div className="last-updated">
             Last updated: {lastUpdated || 'Never'}
           </div>
 
-          {/* Stats Cards */}
           <div className="stats-grid">
             <div className="stat-card">
-              <h3>📈 Current RAM</h3>
-              <p className="stat-value">{stats.latestRam}%</p>
-              <p className="stat-label">Last recorded</p>
+              <h3>🧠 RAM Used</h3>
+              <p className="stat-value">{latest.ram ?? 0}</p>
+              <p className="stat-label">MB</p>
             </div>
+
             <div className="stat-card">
-              <h3>⚡ Current Load</h3>
-              <p className="stat-value">{stats.latestLoad}</p>
-              <p className="stat-label">Last recorded</p>
+              <h3>💽 Disk Used</h3>
+              <p className="stat-value">{latest.disk_used_percent ?? 0}%</p>
+              <p className="stat-label">Root disk usage</p>
             </div>
+
             <div className="stat-card">
-              <h3>📊 Avg RAM</h3>
-              <p className="stat-value">{stats.avgRam}%</p>
-              <p className="stat-label">Average</p>
+              <h3>🔥 CPU Used</h3>
+              <p className="stat-value">{latest.cpu_percent ?? 0}%</p>
+              <p className="stat-label">Processor usage</p>
             </div>
+
             <div className="stat-card">
-              <h3>⚙️ Avg Load</h3>
-              <p className="stat-value">{stats.avgLoad}</p>
-              <p className="stat-label">Average</p>
+              <h3>⚡ Load 1 Min</h3>
+              <p className="stat-value">{latest.load1 ?? 0}</p>
+              <p className="stat-label">Current load</p>
             </div>
+
             <div className="stat-card">
-              <h3>📈 Peak RAM</h3>
-              <p className="stat-value">{stats.maxRam}%</p>
-              <p className="stat-label">Maximum</p>
+              <h3>⚙️ Load 5 Min</h3>
+              <p className="stat-value">{latest.load5 ?? 0}</p>
+              <p className="stat-label">Medium average</p>
             </div>
+
             <div className="stat-card">
-              <h3>⚡ Peak Load</h3>
-              <p className="stat-value">{stats.maxLoad}</p>
-              <p className="stat-label">Maximum</p>
+              <h3>📈 Load 15 Min</h3>
+              <p className="stat-value">{latest.load15 ?? 0}</p>
+              <p className="stat-label">Long average</p>
             </div>
           </div>
 
-          {/* Charts */}
           {metrics.length > 0 && (
             <>
               <div className="charts-grid">
-                <div className="chart-container">
-                  <h2>RAM Usage Over Time</h2>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={metrics}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="time" 
-                        tick={{ fontSize: 12 }}
-                        angle={-45}
-                        textAnchor="end"
-                        height={80}
-                      />
-                      <YAxis label={{ value: 'RAM (%)', angle: -90, position: 'insideLeft' }} />
-                      <Tooltip 
-                        formatter={(value) => `${value}%`}
-                        labelFormatter={(label) => `Time: ${label}`}
-                      />
-                      <Legend />
-                      <Line 
-                        type="monotone" 
-                        dataKey="ram" 
-                        stroke="#667eea" 
-                        dot={false}
-                        isAnimationActive={false}
-                        name="RAM Usage"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
+                <ChartBox title="RAM Usage Over Time">
+                  <LineChart data={metrics}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="time" tick={{ fontSize: 12 }} />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="ram" dot={false} name="RAM Used MB" />
+                  </LineChart>
+                </ChartBox>
 
-                <div className="chart-container">
-                  <h2>System Load Over Time</h2>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={metrics}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="time" 
-                        tick={{ fontSize: 12 }}
-                        angle={-45}
-                        textAnchor="end"
-                        height={80}
-                      />
-                      <YAxis label={{ value: 'Load', angle: -90, position: 'insideLeft' }} />
-                      <Tooltip 
-                        labelFormatter={(label) => `Time: ${label}`}
-                      />
-                      <Legend />
-                      <Line 
-                        type="monotone" 
-                        dataKey="load" 
-                        stroke="#764ba2" 
-                        dot={false}
-                        isAnimationActive={false}
-                        name="System Load"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
+                <ChartBox title="CPU Usage Over Time">
+                  <LineChart data={metrics}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="time" tick={{ fontSize: 12 }} />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="cpu_percent" dot={false} name="CPU %" />
+                  </LineChart>
+                </ChartBox>
+
+                <ChartBox title="Disk Usage Over Time">
+                  <LineChart data={metrics}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="time" tick={{ fontSize: 12 }} />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="disk_used_percent" dot={false} name="Disk %" />
+                  </LineChart>
+                </ChartBox>
+
+                <ChartBox title="Load Average Over Time">
+                  <LineChart data={metrics}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="time" tick={{ fontSize: 12 }} />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="load1" dot={false} name="Load 1 min" />
+                    <Line type="monotone" dataKey="load5" dot={false} name="Load 5 min" />
+                    <Line type="monotone" dataKey="load15" dot={false} name="Load 15 min" />
+                  </LineChart>
+                </ChartBox>
               </div>
 
-              {/* Data Table */}
               <div className="table-container">
                 <h2>Recent Metrics Data</h2>
                 <table className="metrics-table">
                   <thead>
                     <tr>
                       <th>#</th>
-                      <th>RAM Usage (%)</th>
-                      <th>System Load</th>
-                      <th>Timestamp</th>
+                      <th>RAM MB</th>
+                      <th>CPU %</th>
+                      <th>Disk %</th>
+                      <th>Load 1</th>
+                      <th>Load 5</th>
+                      <th>Load 15</th>
+                      <th>Time</th>
                     </tr>
                   </thead>
                   <tbody>
                     {[...metrics].reverse().map((metric, index) => (
                       <tr key={index}>
                         <td>{metrics.length - index}</td>
-                        <td>
-                          <span className="ram-badge">
-                            {metric.ram}%
-                          </span>
-                        </td>
-                        <td>
-                          <span className="load-badge">
-                            {metric.load}
-                          </span>
-                        </td>
+                        <td>{metric.ram}</td>
+                        <td>{metric.cpu_percent}%</td>
+                        <td>{metric.disk_used_percent}%</td>
+                        <td>{metric.load1}</td>
+                        <td>{metric.load5}</td>
+                        <td>{metric.load15}</td>
                         <td>{metric.time}</td>
                       </tr>
                     ))}

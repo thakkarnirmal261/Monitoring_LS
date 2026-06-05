@@ -1,3 +1,5 @@
+import re
+
 from app.ssh_client import run_command
 
 
@@ -21,7 +23,10 @@ top -bn1 | grep 'Cpu(s)'
     load15 = float(loads[2])
 
     cpu_line = lines[3]
-    idle = float(cpu_line.split("id,")[0].split()[-1])
+    # top right-justifies CPU fields, so at 100.0 idle the leading space is
+    # dropped (e.g. "ni,100.0 id"), which broke a plain whitespace split.
+    # Grab the number immediately before "id" instead.
+    idle = float(re.search(r"([\d.]+)\s*id", cpu_line).group(1))
     cpu_percent = round(100 - idle, 2)
 
     return {

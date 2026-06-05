@@ -17,6 +17,7 @@ def collect_metrics():
         data["load5"],
         data["load15"],
         data["cpu_percent"],
+        
     )
 
     return data

@@ -1,0 +1,46 @@
+# Runs ONLY on monitoringLS.
+# Backend API + Celery worker/beat + Redis. No nginx/frontend here.
+# Usage on the server:
+#   docker compose -f deploy/docker-compose.monitoring.yml up -d --build
+services:
+  redis:
+    image: redis:7
+    restart: always
+
+  backend:
+    build: .
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    restart: always
+    ports:
+      - "8000:8000"          # reachable by frontendLSEC2 over the private network
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    volumes:
+      - .:/app
+      - /home/ubuntu/.ssh:/root/.ssh   # the .pem used to SSH into productionLSEC2
+
+  worker:
+    build: .
+    command: celery -A app.worker.celery worker --loglevel=info
+    restart: always
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    volumes:
+      - .:/app
+      - /home/ubuntu/.ssh:/root/.ssh
+
+  beat:
+    build: .
+    command: celery -A app.worker.celery beat --loglevel=info
+    restart: always
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    volumes:
+      - .:/app
+      - /home/ubuntu/.ssh:/root/.ssh

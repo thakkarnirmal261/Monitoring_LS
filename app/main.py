@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.tasks import collect_metrics
 from app.database import get_metrics
 
 app = FastAPI()
@@ -18,13 +17,6 @@ app.add_middleware(
 @app.get("/")
 def home():
     return {"msg": "Monitoring running"}
-
-
-# Manual trigger for testing
-@app.get("/trigger")
-def trigger():
-    collect_metrics.delay()
-    return {"msg": "Task sent to worker"}
 
 
 @app.get("/metrics")

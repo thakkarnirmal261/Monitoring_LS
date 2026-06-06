@@ -17,7 +17,12 @@ export default function App() {
       try {
         const data = await fetchMetrics();
 
-        const formatted = data.map((m) => ({
+        // The API returns newest-first (ORDER BY created_at DESC). Reverse to
+        // oldest-first so the charts read left->right in time and
+        // metrics[length - 1] is the newest reading (used by the stat cards).
+        const ascending = [...data].reverse();
+
+        const formatted = ascending.map((m) => ({
           ...m,
           ram: Number(m.ram) || 0,
           load: Number(m.load) || 0,
@@ -26,7 +31,8 @@ export default function App() {
           load5: Number(m.load5) || 0,
           load15: Number(m.load15) || 0,
           cpu_percent: Number(m.cpu_percent) || 0,
-          time: new Date(m.time).toLocaleTimeString(),
+          // created_at is stored in UTC; mark it as UTC so it renders in local time.
+          time: new Date(m.time.replace(' ', 'T') + 'Z').toLocaleTimeString(),
         }));
 
         setMetrics(formatted);
